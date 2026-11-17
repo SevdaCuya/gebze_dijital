@@ -242,7 +242,7 @@ Kullanıcılar kayıt olmadan uygulamayı misafir olarak deneyimleyebilir; kriti
 Belediye yöneticileri ve saha ekipleri için tasarlanan web yönetim kokpiti, Firebase Firestore ile çift yönlü gerçek zamanlı senkronize çalışır.
 
 ### 4.1 Vatandaş Talepleri (Çek & Gönder) Yönetimi
-> **Açıklama**: Vatandaşların mobil uygulama üzerinden gönderdiği fotoğraflı ve konumlu arıza/şikayet bildirimlerinin (asfalt çökmesi, kaldırım, aydınlatma, su patlağı vb.) takip edildiği, durumunun *(Beklemede, İnceleniyor, Çözüldü)* güncellendiği ve vatandaşa SMS/Push yanıtı iletildiği ana operasyon ekranı.
+> **Açıklama**: Vatandaşların mobil uygulama üzerinden gönderdiği fotoğraflı ve konumlu arıza/şikayet bildirimlerinin takip edildiği operasyon ekranıdır. Ayrıca mobil taraftaki `lib/screens/report_screen.dart` modülü, Gebze Belediyesi'nin resmi **ULAKBEL Çözüm Masası** portalına doğrudan yönlendirme ve başvuru entegrasyonu sağlar (güncel yönetim paneli sekme yapısı moderasyon, yayınlar, altyapı ve rehber modüllerine odaklanacak şekilde sadeleştirilmiştir).
 
 <p align="center">
   <img src="screenshots/admin/admin_01.jpeg" width="900" alt="Vatandaş Talepleri Yönetimi"/>
@@ -430,6 +430,36 @@ Belediye yöneticileri ve saha ekipleri için tasarlanan web yönetim kokpiti, F
 | **Yapay Zekâ Asistanı** | Bot82 Doğal Dil Kural ve Niyet Çıkarım Motoru (Intent Matcher) |
 | **Yönetim Paneli** | Responsive Dashboard CSS, Modern Glassmorphism, Firebase JS SDK v10 |
 
+### Proje Dizin Yapısı
+
+```text
+gebze_dijital/
+├── lib/
+│   ├── core/               # Tema, çoklu dil (app_strings), erişilebilirlik, bildirim ve servisler
+│   ├── features/           # Modüler özellikler (chatbot, emunicipality, news, parking, pets, pharmacy, profile, surveys, weather)
+│   ├── screens/            # Ana ekranlar, sabit alt gezinme çubuğu (app_bottom_nav), rehber ve ULAKBEL talep yönlendirme
+│   ├── firebase_options.dart
+│   └── main.dart
+├── admin/
+│   ├── index.html          # Yönetim paneli ana iskeleti ve Firebase modül yükleyicisi
+│   ├── styles.css          # Yönetim paneli stil tanımları
+│   ├── admin_core.js       # Oturum, navigasyon, dashboard KPI sayaçları ve ortak araçlar
+│   ├── admin_content.js    # Haberler, etkinlikler, anketler, öneriler ve acil push duyurular
+│   ├── admin_services.js   # Kesintiler, saha çalışmaları, toplanma alanları, eczane, otopark, kreş, pati ve kullanıcılar
+│   ├── admin_guide.js      # Şehir rehberi, tarihi yerler, yöresel lezzetler, doğa ve piknik rotaları
+│   ├── events_cache.js     # Resmi etkinlik önbelleği (events_cache.json ile birlikte)
+│   └── news_cache.js       # Resmi haber önbelleği
+├── scripts/
+│   ├── events-sync/        # Etkinlik senkronizasyon betiği
+│   ├── news-sync/          # Haber ve önbellek senkronizasyon betikleri
+│   ├── pharmacy-sync/      # Nöbetçi eczane senkronizasyon betiği
+│   └── weather-sync/       # Hava durumu senkronizasyon betiği
+├── test/                   # 12 birim/widget test dosyası (83 test)
+├── .github/workflows/      # Otomatik senkronizasyon ve iOS unsigned derleme iş akışları
+├── firestore.rules         # Cloud Firestore rol tabanlı erişim kuralları
+└── firebase.json           # Firebase proje ve Firestore kuralları yapılandırması
+```
+
 ---
 
 ## 🚀 Kurulum ve Çalıştırma
@@ -437,13 +467,15 @@ Belediye yöneticileri ve saha ekipleri için tasarlanan web yönetim kokpiti, F
 ### Gereksinimler
 - Flutter SDK (v3.13 veya üzeri)
 - Dart SDK (v3.0 veya üzeri)
+- Node.js (v20/v22 - `scripts/` senkronizasyon servisleri için)
 - Android Studio / Xcode (Mobil derleme için)
+- Firebase CLI (`firestore.rules` yayını için, isteğe bağlı)
 - Web tarayıcısı (Chrome / Edge - Yönetim paneli için)
 
 ### 1. Depoyu Klonlayın
 ```bash
 git clone https://github.com/affanccn/gebze_dijital.git
-cd gebze_dijital/gebze_dijital
+cd gebze_dijital
 ```
 
 ### 2. Bağımlılıkları Yükleyin
@@ -459,10 +491,28 @@ flutter run -d chrome
 ```
 
 ### 4. Web Yönetim Panelini Başlatın
-Yönetim panelini `admin` klasöründen yerel bir web sunucusuyla veya doğrudan tarayıcıda `index.html` dosyasını açarak başlatabilirsiniz:
+Yönetim panelini `admin` klasöründen yerel bir web sunucusuyla başlatın (`<script type="module">` kullanımı nedeniyle HTTP üzerinden sunulmalıdır):
 ```bash
 cd admin
 python -m http.server 8080
+```
+
+### 5. Otomatik Veri Senkronizasyon Servisleri (`scripts/` & GitHub Actions)
+Etkinlik, haber, nöbetçi eczane ve hava durumu verileri `.github/workflows/` altındaki zamanlanmış iş akışlarıyla güncellenir:
+- `.github/workflows/sync-events.yml` → `scripts/events-sync/`
+- `.github/workflows/sync-news.yml` → `scripts/news-sync/`
+- `.github/workflows/sync-pharmacy.yml` → `scripts/pharmacy-sync/`
+- `.github/workflows/sync-weather.yml` → `scripts/weather-sync/`
+
+Depo **GitHub Secrets** ayarlarında aşağıdaki gizli değişkenlerin tanımlı olması gerekir:
+- `FIREBASE_SERVICE_ACCOUNT` (Firebase Service Account JSON)
+- `PHARMACY_API_KEY` (Nöbetçi eczane API anahtarı)
+- `WEATHER_API_KEY` (Hava durumu API anahtarı)
+
+### 6. Firebase Güvenlik Kuralları (`firestore.rules`)
+Firestore kurallarını `firebase.json` üzerinden yayınlamak için:
+```bash
+firebase deploy --only firestore:rules
 ```
 
 ---
